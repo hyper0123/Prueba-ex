@@ -1,0 +1,49 @@
+name: Generar M3U desde combinaciones a0XX
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * *"  # Corre todos los días a las 3 AM UTC
+
+permissions:
+  contents: write  # 🔐 Permite hacer push al repositorio
+
+jobs:
+  generar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v3
+
+      - name: Crear lista M3U con combinaciones válidas
+        run: |
+          echo "#EXTM3U" > valid.m3u
+
+          for c1 in {a..z} {0..9}; do
+            for c2 in {a..z} {0..9}; do
+              code="a0$c1$c2"
+
+              # Asegura que tenga al menos una letra y un número
+              if [[ "$code" =~ [a-z] ]] && [[ "$code" =~ [0-9] ]]; then
+                url="http://tmp-sv3.teleon.live:8080/play/$code/index.m3u8"
+                status=$(curl -s -o /dev/null -w "%{http_code}" "$url")
+
+                if [ "$status" -eq 200 ]; then
+                  echo "✅ Canal activo: $code"
+                  echo "#EXTINF:-1,$code" >> valid.m3u
+                  echo "$url" >> valid.m3u
+                fi
+
+                sleep 1  # Pausa para evitar bloqueos
+              fi
+            done
+          done
+
+      - name: Hacer commit y push del archivo generado
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          git add valid.m3u || true
+          git commit -m "Lista M3U actualizada desde workflow (a0xx)" || true
+          git push || true
