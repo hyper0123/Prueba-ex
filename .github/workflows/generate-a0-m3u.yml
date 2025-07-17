@@ -26,7 +26,7 @@ jobs:
 
               # Asegura que tenga al menos una letra y un número
               if [[ "$code" =~ [a-z] ]] && [[ "$code" =~ [0-9] ]]; then
-                url="http://tmp-sv3.teleon.live:8080/play/$code/index.m3u8"
+                url="http://dominio:8080/play/$code/index.m3u8"
                 status=$(curl -s -o /dev/null -w "%{http_code}" "$url")
 
                 if [ "$status" -eq 200 ]; then
