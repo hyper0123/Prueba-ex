@@ -1,49 +1,50 @@
-name: Generar M3U desde combinaciones a0XX
+name: Probar streams por rango personalizado
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 3 * * *"  # Corre todos los días a las 3 AM UTC
+    inputs:
+      start_id:
+        description: "Número inicial del rango (ej: 100000)"
+        required: true
+        default: "100000"
+      end_id:
+        description: "Número final del rango (ej: 110000)"
+        required: true
+        default: "101000"
 
 permissions:
-  contents: write  # 🔐 Permite hacer push al repositorio
+  contents: read
 
 jobs:
-  generar:
+  probar_rango:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout del repositorio
-        uses: actions/checkout@v3
-
-      - name: Crear lista M3U con combinaciones válidas
+      - name: Crear lista de streams válidos
         run: |
-          echo "#EXTM3U" > valid.m3u
+          START_ID=${{ github.event.inputs.start_id }}
+          END_ID=${{ github.event.inputs.end_id }}
 
-          for c1 in {a..z} {0..9}; do
-            for c2 in {a..z} {0..9}; do
-              code="a0$c1$c2"
+          echo "🔍 Explorando desde $START_ID hasta $END_ID"
+          echo "#EXTM3U" > valid_numbers.m3u
 
-              # Asegura que tenga al menos una letra y un número
-              if [[ "$code" =~ [a-z] ]] && [[ "$code" =~ [0-9] ]]; then
-                url="http://dominio:8080/play/$code/index.m3u8"
-                status=$(curl -s -o /dev/null -w "%{http_code}" "$url")
+          for id in $(seq $START_ID $END_ID); do
+            url="http://172.93.102.112:8989/${id}_.m3u8"
+            status=$(curl -s -o /dev/null -w "%{http_code}" "$url")
 
-                if [ "$status" -eq 200 ]; then
-                  echo "✅ Canal activo: $code"
-                  echo "#EXTINF:-1,$code" >> valid.m3u
-                  echo "$url" >> valid.m3u
-                fi
+            if [ "$status" -eq 200 ]; then
+              echo "✅ Canal activo: $id"
+              echo "#EXTINF:-1,Canal $id" >> valid_numbers.m3u
+              echo "$url" >> valid_numbers.m3u
+            else
+              echo "❌ No válido: $id ($status)"
+            fi
 
-                sleep 1  # Pausa para evitar bloqueos
-              fi
-            done
+            sleep 3  # 🛡️ Espera entre peticiones
           done
 
-      - name: Hacer commit y push del archivo generado
-        run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "actions@github.com"
-          git add valid.m3u || true
-          git commit -m "Lista M3U actualizada desde workflow (a0xx)" || true
-          git push || true
+      - name: Subir archivo como artefacto descargable
+        uses: actions/upload-artifact@v4
+        with:
+          name: lista-validos-${{ github.event.inputs.start_id }}-${{ github.event.inputs.end_id }}
+          path: valid_numbers.m3u
