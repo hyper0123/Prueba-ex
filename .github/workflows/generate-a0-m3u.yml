@@ -29,7 +29,7 @@ jobs:
           echo "#EXTM3U" > valid_numbers.m3u
 
           for id in $(seq $START_ID $END_ID); do
-            url="http://88b9da48.kazmazpaz.ru/iptv/LQ3H9GP9M7UA6M/${id}/manifest.m3u8"
+            url="https://os.mxonlive.workers.dev/azers/${id}.m3u8"
             status=$(curl -s -o /dev/null -w "%{http_code}" "$url")
 
             if [ "$status" -eq 200 ]; then
